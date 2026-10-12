@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kamera AI">
+<title>Kamera AI</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="ikon-192.png">
+<link rel="apple-touch-icon" href="ikon-192.png">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { --bg: #f3f5f9; --card: #fff; --tx: #111827; --mut: #6b7280; --ln: #e5e7eb; --ac: #2563eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1220; --card: #111a2e; --tx: #e5e7eb; --mut: #94a3b8; --ln: #1f2a44; } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font: 15px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--tx); }
+  header { position: sticky; top: 0; z-index: 5; background: #111827; color: #fff; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top));
+           display: flex; align-items: center; gap: 8px; }
+  header b { font-size: 17px; flex: 1; }
+  main { padding: 10px 12px 90px; }
+  .card { background: var(--card); border: 1px solid var(--ln); border-radius: 12px; padding: 10px; margin: 10px 0; }
+  .kpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kpi div { background: var(--card); border: 1px solid var(--ln); border-radius: 12px; padding: 10px; }
+  .kpi b { font-size: 20px; display: block; }
+  .kpi small { color: var(--mut); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+  .kam img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #000; display: block; }
+  .kam div { font-size: 13px; padding: 4px 2px; }
+  input, select, button { font: inherit; border-radius: 10px; border: 1px solid var(--ln); padding: 11px 12px; background: var(--card); color: var(--tx); width: 100%; }
+  button { cursor: pointer; width: auto; }
+  button.pr { background: var(--ac); color: #fff; border-color: var(--ac); width: 100%; font-weight: 600; }
+  .err { color: #ef4444; margin-top: 6px; }
+  .mut { color: var(--mut); font-size: 13px; }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--ln); display: flex;
+        padding-bottom: env(safe-area-inset-bottom); z-index: 6; }
+  nav button { flex: 1; border: 0; border-radius: 0; background: none; padding: 9px 2px 8px; font-size: 12px; color: var(--mut); }
+  nav button.on { color: var(--ac); font-weight: 700; }
+  nav span { display: block; font-size: 21px; }
+  #katta { position: fixed; inset: 0; background: #000; z-index: 20; display: none; flex-direction: column; }
+  #katta img, #katta video { width: 100%; flex: 1; object-fit: contain; }
+  #katta .bar { color: #fff; display: flex; gap: 8px; padding: 10px; padding-top: max(10px, env(safe-area-inset-top)); align-items: center; }
+  #katta .bar b { flex: 1; }
+  .chip { display: inline-block; padding: 6px 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--ln); margin: 3px 3px 0 0; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; } td { padding: 6px 4px; border-bottom: 1px solid var(--ln); vertical-align: top; }
+</style>
+</head>
+<body>
+<header><b>📷 Kamera AI</b><span id="hol" class="mut" style="color:#cbd5e1"></span></header>
+<main id="app"><div class="mut">Yuklanmoqda…</div></main>
+<nav id="nav" style="display:none">
+  <button data-t="asosiy" onclick="tab('asosiy')"><span>📊</span>Asosiy</button>
+  <button data-t="kameralar" onclick="tab('kameralar')"><span>🎥</span>Kameralar</button>
+  <button data-t="izla" onclick="tab('izla')"><span>🔎</span>Qidiruv</button>
+  <button data-t="xodim" onclick="tab('xodim')"><span>👷</span>Xodimlar</button>
+  <button data-t="soz" onclick="tab('soz')"><span>⚙</span>Boshqa</button>
+</nav>
+<div id="katta"><div class="bar"><b id="kNom"></b><button id="kHD" onclick="hdAlmash()">HD</button><button onclick="yop()">✖</button></div><div id="kIch" style="flex:1;display:flex"></div></div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const TG = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null;
+const SAQ = { get: k => { try { return JSON.parse(localStorage.getItem("kai_" + k)); } catch (e) { return null; } },
+              set: (k, v) => { try { localStorage.setItem("kai_" + k, JSON.stringify(v)); } catch (e) {} } };
+let S = {url: null, token: null, id: null}, D = null, TAB = "asosiy", timer = null, KIP = null, HD = false;
+
+async function sha(s) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+async function manzil(id) {  // Server ID -> joriy internet manzili (kompyuter har ishga tushganda yangilab e'lon qiladi)
+  const kanal = "kai-" + (await sha("kameraai:" + id.toUpperCase())).slice(0, 24);
+  const r = await fetch(`https://ntfy.sh/${kanal}/json?poll=1&since=24h`);
+  const qatorlar = (await r.text()).trim().split("\n").filter(Boolean).map(x => JSON.parse(x)).filter(x => x.event === "message");
+  if (!qatorlar.length) throw new Error("Server topilmadi. Server ID to'g'rimi? Kompyuter yoqiq va internetga ulanganmi?");
+  return JSON.parse(qatorlar[qatorlar.length - 1].message).url;
+}
+function u(yol) { return S.url + yol + (yol.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(S.token); }
+async function api(yol, body) {
+  const r = await fetch(S.url + yol, {method: body ? "POST" : "GET", headers: {"Authorization": "Bearer " + S.token, "Content-Type": "application/json"},
+                                      body: body ? JSON.stringify(body) : undefined});
+  if (r.status === 401) { SAQ.set("token", null); throw new Error("401"); }
+  const d = await r.json(); if (!r.ok) throw new Error(d.xato || "xato"); return d;
+}
+
+async function boshlash() {
+  if (TG) { TG.ready(); TG.expand(); }
+  const p = new URLSearchParams(location.search);
+  S.id = (p.get("id") || SAQ.get("id") || "").toUpperCase();
+  S.token = SAQ.get("token");
+  try {
+    if (TG && S.id) {  // Telegram ichida - login so'ralmaydi
+      S.url = await manzil(S.id);
+      const r = await fetch(S.url + "/api/tg_kirish", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({initData: TG.initData})});
+      const d = await r.json(); if (!r.ok) throw new Error(d.xato);
+      S.token = d.token; return ishga();
+    }
+    if (S.id && S.token) { S.url = await manzil(S.id); await api("/api/holat"); return ishga(); }
+  } catch (e) { if (TG) return xato(e.message); }
+  kirishOyna();
+}
+function xato(m) { $("app").innerHTML = `<div class="card err">⚠️ ${esc(m)}</div><button onclick="location.reload()">↻ Qayta urinish</button>`; }
+function kirishOyna(xabar) {
+  $("nav").style.display = "none";
+  $("app").innerHTML = `<div class="card" style="margin-top:30px">
+    <h2 style="margin:4px 0 6px">🔐 Kirish</h2>
+    <div class="mut">Kamera AI o'rnatilgan obyektning Server ID si va sizga berilgan login/parol.</div>
+    <form onsubmit="kir(event)" style="display:grid;gap:10px;margin-top:12px">
+      <input id="lId" placeholder="Server ID (masalan KAI-7F3K-92QX)" value="${esc(S.id || "")}" autocapitalize="characters" required>
+      <input id="lL" placeholder="Login" autocapitalize="none" autocomplete="username" required>
+      <input id="lP" type="password" placeholder="Parol" autocomplete="current-password" required>
+      <button class="pr">Kirish</button><div id="lX" class="err">${esc(xabar || "")}</div></form></div>`;
+}
+async function kir(ev) {
+  ev.preventDefault();
+  $("lX").textContent = "Server qidirilmoqda…";
+  try {
+    S.id = $("lId").value.trim().toUpperCase();
+    S.url = await manzil(S.id);
+    const r = await fetch(S.url + "/api/kirish", {method: "POST", headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify({login: $("lL").value, parol: $("lP").value})});
+    const d = await r.json(); if (!r.ok) throw new Error(d.xato);
+    S.token = d.token; SAQ.set("id", S.id); SAQ.set("token", S.token);
+    ishga();
+  } catch (e) { $("lX").textContent = e.message === "Failed to fetch" ? "Kompyuterga ulanib bo'lmadi — u yoqiqmi?" : e.message; }
+}
+function chiq() { api("/api/chiqish", {}).catch(() => {}); SAQ.set("token", null); S.token = null; kirishOyna(); }
+
+async function ishga() {
+  $("nav").style.display = "flex";
+  await yangila(); tab(TAB);
+  clearInterval(timer); timer = setInterval(() => { if ($("katta").style.display !== "flex") yangila().then(() => chiz(true)); }, 12000);
+}
+async function yangila() {
+  try { D = await api("/api/holat"); }
+  catch (e) { if (e.message === "401") return kirishOyna("Sessiya tugadi — qayta kiring"); $("hol").textContent = "⚠️ aloqa yo'q"; return; }
+  const h = D.holat || {};
+  $("hol").textContent = h.holat === "ishlayapti" ? "🟢 " + (h.vaqt || "").slice(11, 16) : h.holat === "pauza" ? "⏸ pauza" : "🌙";
+}
+function tab(t) {
+  TAB = t;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  chiz(false);
+}
+function chiz(faqatYangi) {
+  if (!D) return;
+  const T = D.tahlil, H = D.holat || {};
+  if (TAB === "asosiy") {
+    $("app").innerHTML = `<div class="kpi">${(D.kpi || []).map(([b, q, i]) => `<div><b>${b} ${esc(q)}</b><small>${esc(i)}</small></div>`).join("")}</div>
+      <div class="card"><b>🎥 Hozir eng faol</b><div class="grid" style="margin-top:8px">${(H.asosiy || []).map(kamKarta).join("")}</div></div>`;
+  } else if (TAB === "kameralar") {
+    if (faqatYangi) { document.querySelectorAll(".kam img").forEach(i => i.src = u(`/kadr.jpg?ip=${i.dataset.ip}&t=${Date.now()}`)); return; }
+    $("app").innerHTML = `<div class="mut">Ikki marta bosing — katta, jonli</div><div class="grid" style="margin-top:8px">${D.sozlama.kameralar.map(k => kamKarta(k.ip)).join("")}</div>`;
+  } else if (TAB === "izla") {
+    if (faqatYangi) return;
+    $("app").innerHTML = `<form onsubmit="izla(event)" style="display:flex;gap:6px"><input id="q" placeholder="Masalan: ${esc((D.misollar || [])[0] || "oq futbolka")}"><button class="pr" style="width:auto">🔎</button></form>
+      <div>${(D.misollar || []).map(m => `<span class="chip" onclick="$('q').value='${esc(m).replace(/&#39;/g, "")}';izla()">${esc(m)}</span>`).join("")}</div><div id="natija"></div>`;
+  } else if (TAB === "xodim") {
+    const xs = T.xodimlar || [];
+    $("app").innerHTML = `<div class="card"><b>👷 Xodimlar — bugun</b>${xs.length ? `<table>${xs.map(x => `<tr><td><b>${esc(x.ism)}</b><br><span class="mut">${x.birinchi}–${x.oxirgi}</span></td>
+      <td>${x.bolimlar.slice(0, 3).map(b => `${esc(b.nom)} <b>${b.tashrif}×</b>`).join("<br>")}</td></tr>`).join("")}</table>` : `<div class="mut">Hali tanilgan xodim yo'q — botda 👷 Xodimlar orqali tanishtiring.</div>`}</div>`;
+  } else if (TAB === "soz") {
+    if (faqatYangi) return;
+    const admin = D.men.rol === "admin";
+    $("app").innerHTML = `<div class="card"><b>${esc(D.obyektlar[D.sozlama.obyekt]?.belgi || "")} ${esc(D.obyektlar[D.sozlama.obyekt]?.nom || "")}</b>
+        <div class="mut">Server: ${esc(S.id)} · ${esc(D.men.login.replace(/^tg:.*/, "Telegram"))} (${D.men.rol === "admin" ? "admin" : "kuzatuvchi"}) · v${esc(D.versiya.nom)}</div></div>
+      ${admin ? `<div class="card"><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" style="width:auto" ${D.sozlama.qoriqlash ? "checked" : ""} onchange="qoriq(this.checked)">
+        <span>🚨 <b>Qo'riqlash</b> — ish vaqtidan tashqari odam ko'rinsa Telegramga rasm va video</span></label></div>` : ""}
+      <button onclick="api('/api/hisobot',{}).then(()=>alert('Telegramga yuborildi')).catch(e=>alert(e.message))" style="width:100%;margin-bottom:8px">📨 Bugungi hisobotni Telegramga</button>
+      ${TG ? "" : `<button onclick="chiq()" style="width:100%">⏏ Chiqish</button>`}`;
+  }
+}
+function kamKarta(ip) {
+  const k = D.sozlama.kameralar.find(x => x.ip === ip) || {nom: ip}, v = (D.holat.kameralar || {})[ip] || {};
+  return `<div class="kam" data-ip="${esc(ip)}" data-nom="${esc(k.nom)}" ondblclick="katta(this.dataset.ip,this.dataset.nom)">
+    <img data-ip="${esc(ip)}" src="${u(`/kadr.jpg?ip=${encodeURIComponent(ip)}&t=${Date.now()}`)}" loading="lazy" onerror="this.style.opacity=.3">
+    <div><b>${esc(k.nom)}</b> ${v.ok === false ? "⚠️" : v.odam != null ? "· " + v.odam + " odam" : ""}</div></div>`;
+}
+function katta(ip, nom) {
+  KIP = [ip, nom]; $("kNom").textContent = "🎥 " + nom; $("katta").style.display = "flex";
+  $("kIch").innerHTML = `<img src="${u(`/jonli.mjpg?ip=${encodeURIComponent(ip)}&katta=${HD ? 1 : 0}`)}" ondblclick="yop()">`;
+  $("kHD").textContent = HD ? "HD ✓" : "HD";
+}
+function hdAlmash() { HD = !HD; if (KIP) katta(KIP[0], KIP[1]); }
+function yop() { $("katta").style.display = "none"; $("kIch").innerHTML = ""; }
+async function izla(ev) {
+  if (ev) ev.preventDefault();
+  const q = $("q").value.trim(); if (!q) return;
+  $("natija").innerHTML = `<div class="mut" style="margin-top:10px">🔎 qidirilmoqda…</div>`;
+  try {
+    const d = await api("/api/izla?q=" + encodeURIComponent(q) + "&kun=7");
+    $("natija").innerHTML = `<div class="mut" style="margin:8px 0">«${esc(d.sorov)}» — ${d.natija.length} ta</div><div class="grid">${d.natija.map(x => `<div class="kam">
+      <img src="${u(`/arxiv/${x.kun}/${encodeURIComponent(x.f)}`)}" style="object-fit:contain">
+      <div><b>${esc(x.nom)}</b> · ${x.kun.slice(5)} ${x.t.slice(0, 5)}<br>
+      <button style="width:100%;margin-top:4px;padding:8px" data-k="${esc(JSON.stringify({kun: x.kun, t: x.t, k: x.k, q: x.tur === "odam" ? x.q : null, s: d.sorov, nom: x.nom}))}"
+        onclick="klip(JSON.parse(this.dataset.k))">🎬 20 s video</button></div></div>`).join("")}</div>`;
+  } catch (e) { $("natija").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+function klip(x) {
+  $("kNom").textContent = `🎬 ${x.nom} ${x.t.slice(0, 5)} — tayyorlanmoqda (1–2 daq)…`; $("katta").style.display = "flex"; $("kHD").style.display = "none";
+  $("kIch").innerHTML = `<video controls autoplay muted playsinline oncanplay="$('kNom').textContent='🎬 ${esc(x.nom)} ${x.t.slice(0, 5)}'"
+    src="${u(`/api/klip?kun=${x.kun}&t=${encodeURIComponent(x.t)}&k=${x.k}&q=${encodeURIComponent(JSON.stringify(x.q))}&s=${encodeURIComponent(x.s)}`)}"></video>`;
+  setTimeout(() => $("kHD").style.display = "", 500);
+}
+async function qoriq(v) { try { await api("/api/sozlama", {qoriqlash: v}); } catch (e) { alert(e.message); } }
+if ("serviceWorker" in navigator && !TG) navigator.serviceWorker.register("sw.js").catch(() => {});
+boshlash();
+</script>
+</body>
+</html>
