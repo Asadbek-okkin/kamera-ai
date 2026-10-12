@@ -57,7 +57,7 @@
   <button data-t="xodim" onclick="tab('xodim')"><span>👷</span>Xodimlar</button>
   <button data-t="soz" onclick="tab('soz')"><span>⚙</span>Boshqa</button>
 </nav>
-<div id="katta"><div class="bar"><b id="kNom"></b><button id="kIj" onclick="ijroOch()">⏪ Yozuv</button><button id="kHD" onclick="hdAlmash()">HD</button><button onclick="yop()">✖</button></div>
+<div id="katta"><div class="bar"><b id="kNom"></b><button id="kOv" onclick="ovozAlmash()" style="display:none">🔇</button><button id="kIj" onclick="ijroOch()">⏪ Yozuv</button><button id="kHD" onclick="hdAlmash()">HD</button><button onclick="yop()">✖</button></div>
   <div id="kIch" style="flex:1;display:flex"></div>
   <div id="ijPanel" style="display:none;color:#fff;padding:8px 10px calc(8px + env(safe-area-inset-bottom))">
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><b id="ijVaqt" style="flex:1"></b>
@@ -71,6 +71,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "
 const TG = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null;
 const SAQ = { get: k => { try { return JSON.parse(localStorage.getItem("kai_" + k)); } catch (e) { return null; } },
               set: (k, v) => { try { localStorage.setItem("kai_" + k, JSON.stringify(v)); } catch (e) {} } };
+let YO = 0;
 let S = {url: null, token: null, id: null}, D = null, TAB = "asosiy", timer = null, KIP = null, HD = false;
 
 async function sha(s) {
@@ -105,8 +106,41 @@ async function boshlash() {
       S.token = d.token; return ishga();
     }
     if (S.id && S.token) { S.url = await manzil(S.id); await api("/api/holat"); return ishga(); }
-  } catch (e) { if (TG) return xato(e.message); }
+  } catch (e) {
+    if (e.message !== "401" && S.id && (S.token || TG)) return oflayn();  // kompyuter o'chiq / internet yo'q
+    if (TG) return xato(e.message);
+  }
   kirishOyna();
+}
+/* Kompyuter o'chiq bo'lsa: oxirgi saqlangan ma'lumot + kameralarni Hik-Connect (registrator buluti) orqali ko'rish */
+const HIK = /iPhone|iPad/.test(navigator.userAgent) ? "https://apps.apple.com/app/hik-connect/id1087803190"
+  : "intent://#Intent;package=com.connect.enduser;S.browser_fallback_url=" + encodeURIComponent("https://play.google.com/store/apps/details?id=com.connect.enduser") + ";end";
+function oflayn() {
+  const k = SAQ.get("kesh") || {};
+  $("nav").style.display = "none";
+  $("hol").textContent = "🔴 oflayn";
+  $("app").innerHTML = `<div class="card" style="border-color:#ef4444">
+      <b>🔴 Kamera AI kompyuteri hozir o'chiq yoki internetga ulanmagan</b>
+      <div class="mut" style="margin-top:4px">Sun'iy intellekt tahlili kompyuter yoqilganda davom etadi. Kameralar va registrator yozuvlari esa ishlayapti —
+      ularni hozir <b>Hik-Connect</b> orqali ko'rishingiz mumkin.</div>
+      <a href="${HIK}" style="display:block;margin-top:10px"><button class="pr">📹 Kameralarni Hik-Connect'da ochish</button></a>
+      <button onclick="location.reload()" style="width:100%;margin-top:8px">↻ Qayta ulanish</button></div>
+    ${k.vaqt ? `<div class="card"><b>🕐 Oxirgi ma'lumot: ${esc(k.vaqt)}</b>
+      <div class="kpi" style="margin-top:8px">${(k.kpi || []).map(([b, q, i]) => `<div><b>${b} ${esc(q)}</b><small>${esc(i)}</small></div>`).join("")}</div>
+      <div class="grid" style="margin-top:8px">${(k.rasmlar || []).map(r => `<div class="kam"><img src="${r.src}"><div><b>${esc(r.nom)}</b> · ${esc(r.vaqt)}</div></div>`).join("")}</div>
+      ${(k.xodimlar || []).length ? `<div style="margin-top:8px"><b>👷 Xodimlar:</b> ${k.xodimlar.map(x => `${esc(x.ism)} ${x.birinchi}–${x.oxirgi}`).join(", ")}</div>` : ""}</div>` : ""}`;
+  clearInterval(timer); timer = setInterval(async () => { try { S.url = await manzil(S.id); await api("/api/holat"); location.reload(); } catch (e) {} }, 60000);
+}
+async function keshla() {  // onlayn paytda: oxirgi holat va asosiy kameralar rasmi telefonda saqlanadi
+  try {
+    const rasmlar = [];
+    for (const ip of (D.holat.asosiy || []).slice(0, 3)) {
+      const b = await (await fetch(u(`/kadr.jpg?ip=${encodeURIComponent(ip)}`))).blob();
+      const src = await new Promise(ok => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b); });
+      rasmlar.push({nom: (D.sozlama.kameralar.find(x => x.ip === ip) || {}).nom || ip, vaqt: (D.holat.vaqt || "").slice(11, 16), src});
+    }
+    SAQ.set("kesh", {vaqt: (D.holat.vaqt || "").slice(0, 16), kpi: D.kpi, xodimlar: (D.tahlil.xodimlar || []).slice(0, 15), rasmlar});
+  } catch (e) {}
 }
 function xato(m) { $("app").innerHTML = `<div class="card err">⚠️ ${esc(m)}</div><button onclick="location.reload()">↻ Qayta urinish</button>`; }
 function kirishOyna(xabar) {
@@ -140,9 +174,17 @@ async function ishga() {
   await yangila(); tab(TAB);
   clearInterval(timer); timer = setInterval(() => { if ($("katta").style.display !== "flex") yangila().then(() => chiz(true)); }, 12000);
 }
+let keshVaqt = 0;
 async function yangila() {
   try { D = await api("/api/holat"); }
-  catch (e) { if (e.message === "401") return kirishOyna("Sessiya tugadi — qayta kiring"); $("hol").textContent = "⚠️ aloqa yo'q"; return; }
+  catch (e) {
+    if (e.message === "401") return kirishOyna("Sessiya tugadi — qayta kiring");
+    $("hol").textContent = "⚠️ aloqa yo'q";
+    if (++YO > 3) oflayn();  // ~40 soniya aloqa yo'q - kompyuter o'chgan
+    return;
+  }
+  YO = 0;
+  if (Date.now() - keshVaqt > 120000) { keshVaqt = Date.now(); keshla(); }
   const h = D.holat || {};
   $("hol").textContent = h.holat === "ishlayapti" ? "🟢 " + (h.vaqt || "").slice(11, 16) : h.holat === "pauza" ? "⏸ pauza" : "🌙";
 }
@@ -186,7 +228,8 @@ function kamKarta(ip) {
     <div><b>${esc(k.nom)}</b> ${v.ok === false ? "⚠️" : v.odam != null ? "· " + v.odam + " odam" : ""}</div></div>`;
 }
 function katta(ip, nom) {
-  ijroYop(); KIP = [ip, nom]; $("kNom").textContent = "🎥 " + nom; $("katta").style.display = "flex";
+  ijroYop(); ovozTo(); KIP = [ip, nom]; $("kNom").textContent = "🎥 " + nom; $("katta").style.display = "flex";
+  const kk = D.sozlama.kameralar.find(x => x.ip === ip); $("kOv").style.display = kk && kk.ovoz ? "" : "none";
   $("kIch").innerHTML = `<img src="${u(`/jonli.mjpg?ip=${encodeURIComponent(ip)}&katta=${HD ? 1 : 0}`)}" ondblclick="yop()">`;
   $("kHD").textContent = HD ? "HD ✓" : "HD";
 }
@@ -218,6 +261,7 @@ function ijroChiz() {
   if (sana(t) === IJ.kun) { g.fillStyle = "#ef4444"; g.fillRect((t.getHours() * 60 + t.getMinutes()) / 1440 * W - 2, 0, 4, H); }
 }
 function ijroQoy(t) {
+  if (OV) { ovozTo(); setTimeout(ovozAlmash, 50); }
   if (t > new Date(Date.now() - 30000)) t = new Date(Date.now() - 30000);
   IJ.boshi = t; IJ.devor = Date.now();
   if (sana(t) !== IJ.kun) { IJ.kun = sana(t); $("ijKun").value = IJ.kun; ijroFaollik(); }
@@ -228,8 +272,16 @@ function ijroQoy(t) {
 function ijroSur(s) { ijroQoy(new Date(ijroHozir().getTime() + s * 1000)); }
 function ijroKun(k) { IJ.kun = k; ijroFaollik(); ijroQoy(new Date(k + "T09:00:00")); }
 function ijroYop() { if (IJ) clearInterval(IJ.tm); IJ = null; $("ijPanel").style.display = "none"; $("kIj").style.display = ""; }
+/* ovoz (mikrofonli kamera) */
+let OV = null;
+function ovozTo() { if (OV) { OV.pause(); OV.src = ""; OV = null; } $("kOv").textContent = "🔇"; }
+function ovozAlmash() {
+  if (OV) return ovozTo();
+  const t = IJ ? "&t=" + encodeURIComponent(sana(ijroHozir()) + " " + soat(ijroHozir())) : "";
+  OV = new Audio(u(`/ovoz.mp3?ip=${encodeURIComponent(KIP[0])}${t}`)); OV.play().catch(() => {}); $("kOv").textContent = "🔊";
+}
 function hdAlmash() { HD = !HD; $("kHD").textContent = HD ? "HD ✓" : "HD"; if (IJ) ijroQoy(ijroHozir()); else if (KIP) katta(KIP[0], KIP[1]); }
-function yop() { ijroYop(); $("katta").style.display = "none"; $("kIch").innerHTML = ""; }
+function yop() { ovozTo(); ijroYop(); $("katta").style.display = "none"; $("kIch").innerHTML = ""; }
 async function izla(ev) {
   if (ev) ev.preventDefault();
   const q = $("q").value.trim(); if (!q) return;
