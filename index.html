@@ -57,7 +57,14 @@
   <button data-t="xodim" onclick="tab('xodim')"><span>👷</span>Xodimlar</button>
   <button data-t="soz" onclick="tab('soz')"><span>⚙</span>Boshqa</button>
 </nav>
-<div id="katta"><div class="bar"><b id="kNom"></b><button id="kHD" onclick="hdAlmash()">HD</button><button onclick="yop()">✖</button></div><div id="kIch" style="flex:1;display:flex"></div></div>
+<div id="katta"><div class="bar"><b id="kNom"></b><button id="kIj" onclick="ijroOch()">⏪ Yozuv</button><button id="kHD" onclick="hdAlmash()">HD</button><button onclick="yop()">✖</button></div>
+  <div id="kIch" style="flex:1;display:flex"></div>
+  <div id="ijPanel" style="display:none;color:#fff;padding:8px 10px calc(8px + env(safe-area-inset-bottom))">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><b id="ijVaqt" style="flex:1"></b>
+      <input type="date" id="ijKun" style="width:auto;padding:6px" onchange="ijroKun(this.value)"></div>
+    <canvas id="ijChiz" height="40" style="width:100%;background:#1f2937;border-radius:6px"></canvas>
+    <div style="display:flex;gap:6px;margin-top:6px"><button onclick="ijroSur(-300)" style="flex:1">−5d</button><button onclick="ijroSur(-30)" style="flex:1">−30s</button>
+      <button onclick="ijroSur(30)" style="flex:1">+30s</button><button onclick="ijroSur(300)" style="flex:1">+5d</button><button onclick="katta(KIP[0],KIP[1])" style="flex:1">🔴</button></div></div></div>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
@@ -179,12 +186,50 @@ function kamKarta(ip) {
     <div><b>${esc(k.nom)}</b> ${v.ok === false ? "⚠️" : v.odam != null ? "· " + v.odam + " odam" : ""}</div></div>`;
 }
 function katta(ip, nom) {
-  KIP = [ip, nom]; $("kNom").textContent = "🎥 " + nom; $("katta").style.display = "flex";
+  ijroYop(); KIP = [ip, nom]; $("kNom").textContent = "🎥 " + nom; $("katta").style.display = "flex";
   $("kIch").innerHTML = `<img src="${u(`/jonli.mjpg?ip=${encodeURIComponent(ip)}&katta=${HD ? 1 : 0}`)}" ondblclick="yop()">`;
   $("kHD").textContent = HD ? "HD ✓" : "HD";
 }
-function hdAlmash() { HD = !HD; if (KIP) katta(KIP[0], KIP[1]); }
-function yop() { $("katta").style.display = "none"; $("kIch").innerHTML = ""; }
+/* yozuvlarni ko'rish (playback) */
+let IJ = null;
+const z2 = n => String(n).padStart(2, "0");
+const sana = d => `${d.getFullYear()}-${z2(d.getMonth() + 1)}-${z2(d.getDate())}`, soat = d => `${z2(d.getHours())}:${z2(d.getMinutes())}:${z2(d.getSeconds())}`;
+async function ijroOch() {
+  const t = new Date(Date.now() - 10 * 60000);
+  IJ = {kun: sana(t), boshi: t, devor: Date.now(), f: null};
+  $("ijPanel").style.display = "block"; $("ijKun").value = IJ.kun; $("kIj").style.display = "none";
+  $("ijChiz").onclick = ev => { const r = ev.target.getBoundingClientRect(), d = new Date(IJ.kun + "T00:00:00");
+    d.setMinutes(Math.floor((ev.clientX - r.left) / r.width * 1440)); ijroQoy(d); };
+  await ijroFaollik(); ijroQoy(t);
+  clearInterval(IJ.tm); IJ.tm = setInterval(ijroChiz, 1000);
+}
+async function ijroFaollik() { try { IJ.f = await api(`/api/faollik?ip=${encodeURIComponent(KIP[0])}&kun=${IJ.kun}`); } catch (e) { IJ.f = null; } ijroChiz(); }
+function ijroHozir() { return new Date(IJ.boshi.getTime() + (Date.now() - IJ.devor)); }
+function ijroChiz() {
+  if (!IJ) return;
+  const c = $("ijChiz"); c.width = c.clientWidth * 2; const g = c.getContext("2d"), W = c.width, H = c.height, f = IJ.f;
+  g.clearRect(0, 0, W, H);
+  if (f) { const mx = Math.max(1, ...f.odam);
+    for (let i = 0; i < 1440; i++) { const x = i / 1440 * W;
+      if (f.harakat[i]) { g.fillStyle = "#4b5563"; g.fillRect(x, H - 8, 2, 8); }
+      if (f.odam[i]) { const h = 4 + (H - 14) * f.odam[i] / mx; g.fillStyle = "#3b82f6"; g.fillRect(x, H - 8 - h, 2, h); } } }
+  g.fillStyle = "#9ca3af"; g.font = "18px sans-serif"; for (let h = 0; h < 24; h += 6) g.fillText(z2(h), h / 24 * W + 3, 18);
+  const t = ijroHozir(); $("ijVaqt").textContent = "⏺ " + sana(t).slice(5) + " " + soat(t);
+  if (sana(t) === IJ.kun) { g.fillStyle = "#ef4444"; g.fillRect((t.getHours() * 60 + t.getMinutes()) / 1440 * W - 2, 0, 4, H); }
+}
+function ijroQoy(t) {
+  if (t > new Date(Date.now() - 30000)) t = new Date(Date.now() - 30000);
+  IJ.boshi = t; IJ.devor = Date.now();
+  if (sana(t) !== IJ.kun) { IJ.kun = sana(t); $("ijKun").value = IJ.kun; ijroFaollik(); }
+  $("kNom").textContent = "⏪ " + KIP[1];
+  $("kIch").innerHTML = `<img src="${u(`/ijro.mjpg?ip=${encodeURIComponent(KIP[0])}&t=${encodeURIComponent(sana(t) + " " + soat(t))}&katta=${HD ? 1 : 0}`)}">`;
+  ijroChiz();
+}
+function ijroSur(s) { ijroQoy(new Date(ijroHozir().getTime() + s * 1000)); }
+function ijroKun(k) { IJ.kun = k; ijroFaollik(); ijroQoy(new Date(k + "T09:00:00")); }
+function ijroYop() { if (IJ) clearInterval(IJ.tm); IJ = null; $("ijPanel").style.display = "none"; $("kIj").style.display = ""; }
+function hdAlmash() { HD = !HD; $("kHD").textContent = HD ? "HD ✓" : "HD"; if (IJ) ijroQoy(ijroHozir()); else if (KIP) katta(KIP[0], KIP[1]); }
+function yop() { ijroYop(); $("katta").style.display = "none"; $("kIch").innerHTML = ""; }
 async function izla(ev) {
   if (ev) ev.preventDefault();
   const q = $("q").value.trim(); if (!q) return;
