@@ -111,7 +111,7 @@ function kirishOyna(xabar) {
       <input id="lId" placeholder="Server ID (masalan KAI-7F3K-92QX)" value="${esc(S.id || "")}" autocapitalize="characters" required>
       <input id="lL" placeholder="Login" autocapitalize="none" autocomplete="username" required>
       <input id="lP" type="password" placeholder="Parol" autocomplete="current-password" required>
-      <button class="pr">Kirish</button><div id="lX" class="err">${esc(xabar || "")}</div></form></div>`;
+      <button class="pr">Kirish</button><div id="lX" class="err">${esc(xabar || "")}</div></form></div>` + iosMaslahat();
 }
 async function kir(ev) {
   ev.preventDefault();
@@ -206,6 +206,25 @@ function klip(x) {
 }
 async function qoriq(v) { try { await api("/api/sozlama", {qoriqlash: v}); } catch (e) { alert(e.message); } }
 if ("serviceWorker" in navigator && !TG) navigator.serviceWorker.register("sw.js").catch(() => {});
+// Android ilova (APK) yangilanishi: ilova ichidagi versiya eskirgan bo'lsa - yuklab olish banneri
+(async () => {
+  const m = navigator.userAgent.match(/KameraAI-APK\/(\d+)/);
+  if (!m) return;
+  try {
+    const j = await (await fetch("apk.json?t=" + Date.now())).json();
+    if (j.versiya > +m[1]) {
+      const d = document.createElement("div");
+      d.style.cssText = "position:fixed;left:10px;right:10px;bottom:76px;z-index:30;background:#16a34a;color:#fff;padding:12px;border-radius:12px;font-weight:600";
+      d.innerHTML = `🆕 Ilovaning yangi versiyasi bor — <a href="${j.url}" style="color:#fff">yuklab o'rnatish</a>`;
+      document.body.appendChild(d);
+    }
+  } catch (e) {}
+})();
+// iPhone (Safari): bosh ekranga qo'shish maslahati
+function iosMaslahat() {
+  const ios = /iPhone|iPad/.test(navigator.userAgent), alohida = navigator.standalone;
+  return ios && !alohida && !TG ? `<div class="card mut">📲 iPhone: pastdagi <b>«Ulashish»</b> → <b>«На экран Домой / Add to Home Screen»</b> — Kamera AI ilova belgisi paydo bo'ladi.</div>` : "";
+}
 boshlash();
 </script>
 </body>
