@@ -208,7 +208,9 @@ function chiz(faqatYangi) {
       <div>${(D.misollar || []).map(m => `<span class="chip" onclick="$('q').value='${esc(m).replace(/&#39;/g, "")}';izla()">${esc(m)}</span>`).join("")}</div><div id="natija"></div>`;
   } else if (TAB === "xodim") {
     const xs = T.xodimlar || [];
-    $("app").innerHTML = `<div class="card"><b>👷 Xodimlar — bugun</b>${xs.length ? `<table>${xs.map(x => `<tr><td><b>${esc(x.ism)}</b><br><span class="mut">${x.birinchi}–${x.oxirgi}</span></td>
+    $("app").innerHTML = `<div class="card"><b>📋 Davomat (Excel)</b><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        ${[["bugun", "Bugun"], ["hafta", "Hafta"], ["oy", "Shu oy"], ["otgan_oy", "O'tgan oy"]].map(([k, t]) => `<a href="${u("/api/davomat.xlsx?davr=" + k)}" style="flex:1"><button style="width:100%">${t}</button></a>`).join("")}</div></div>
+      <div class="card"><b>👷 Xodimlar — bugun</b>${xs.length ? `<table>${xs.map(x => `<tr><td><b>${esc(x.ism)}</b><br><span class="mut">${x.birinchi}–${x.oxirgi}</span></td>
       <td>${x.bolimlar.slice(0, 3).map(b => `${esc(b.nom)} <b>${b.tashrif}×</b>`).join("<br>")}</td></tr>`).join("")}</table>` : `<div class="mut">Hali tanilgan xodim yo'q — botda 👷 Xodimlar orqali tanishtiring.</div>`}</div>`;
   } else if (TAB === "soz") {
     if (faqatYangi) return;
@@ -217,6 +219,7 @@ function chiz(faqatYangi) {
         <div class="mut">Server: ${esc(S.id)} · ${esc(D.men.login.replace(/^tg:.*/, "Telegram"))} (${D.men.rol === "admin" ? "admin" : "kuzatuvchi"}) · v${esc(D.versiya.nom)}</div></div>
       ${admin ? `<div class="card"><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" style="width:auto" ${D.sozlama.qoriqlash ? "checked" : ""} onchange="qoriq(this.checked)">
         <span>🚨 <b>Qo'riqlash</b> — ish vaqtidan tashqari odam ko'rinsa Telegramga rasm va video</span></label></div>` : ""}
+      ${D.sozlama.obyekt === "dokon" ? `<a href="${u("/api/tovarlar.xlsx?davr=oy")}"><button style="width:100%;margin-bottom:8px">🛒 Tovarlar statistikasi (Excel)</button></a>` : ""}
       <button onclick="api('/api/hisobot',{}).then(()=>alert('Telegramga yuborildi')).catch(e=>alert(e.message))" style="width:100%;margin-bottom:8px">📨 Bugungi hisobotni Telegramga</button>
       ${TG ? "" : `<button onclick="chiq()" style="width:100%">⏏ Chiqish</button>`}`;
   }
