@@ -184,6 +184,7 @@ async function yangila() {
     return;
   }
   YO = 0;
+  yangilanishBanner();
   if (Date.now() - keshVaqt > 120000) { keshVaqt = Date.now(); keshla(); }
   const h = D.holat || {};
   $("hol").textContent = h.holat === "ishlayapti" ? "🟢 " + (h.vaqt || "").slice(11, 16) : h.holat === "pauza" ? "⏸ pauza" : "🌙";
@@ -306,6 +307,24 @@ function klip(x) {
 }
 async function qoriq(v) { try { await api("/api/sozlama", {qoriqlash: v}); } catch (e) { alert(e.message); } }
 if ("serviceWorker" in navigator && !TG) navigator.serviceWorker.register("sw.js").catch(() => {});
+// Kompyuterdagi Kamera AI uchun yangi versiya chiqsa - telefonda ham xabar; admin shu yerdan yangilaydi
+function yangilanishBanner() {
+  const v = D && D.yangilanish, eski = $("yngBanner");
+  if (!v) { if (eski) eski.remove(); return; }
+  if (eski) return;
+  const d = document.createElement("div"); d.id = "yngBanner";
+  d.style.cssText = "position:fixed;left:10px;right:10px;bottom:76px;z-index:31;background:#2563eb;color:#fff;padding:12px;border-radius:12px;font-weight:600";
+  const admin = D.men && D.men.rol === "admin";
+  d.innerHTML = `🆕 Kamera AI ${esc(v.nom)} chiqdi (hozir ${esc(D.versiya.nom)})` +
+    (admin ? ` <button id="yngBtn" style="margin-left:6px;padding:6px 10px;border:0;border-radius:8px;font-weight:700">⬆ Yangilash</button>` : "") +
+    ` <span style="float:right;cursor:pointer" onclick="this.parentNode.remove()">✕</span>`;
+  document.body.appendChild(d);
+  if (admin) $("yngBtn").onclick = async () => {
+    if (!confirm(`Kompyuterdagi Kamera AI ${v.nom} ga yangilansinmi? 1–2 daqiqa ishlamay turadi.`)) return;
+    try { await api("/api/yangilash", {}); d.innerHTML = "⏳ Yangilanmoqda… 1–2 daqiqadan keyin ilovani qayta oching."; }
+    catch (e) { alert(e.message); }
+  };
+}
 // Android ilova (APK) yangilanishi: ilova ichidagi versiya eskirgan bo'lsa - yuklab olish banneri
 (async () => {
   const m = navigator.userAgent.match(/KameraAI-APK\/(\d+)/);
