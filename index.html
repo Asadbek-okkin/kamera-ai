@@ -83,7 +83,25 @@ async function manzil(id) {  // Server ID -> joriy internet manzili (kompyuter h
   const r = await fetch(`https://ntfy.sh/${kanal}/json?poll=1&since=24h`);
   const qatorlar = (await r.text()).trim().split("\n").filter(Boolean).map(x => JSON.parse(x)).filter(x => x.event === "message");
   if (!qatorlar.length) throw new Error("Server topilmadi. Server ID to'g'rimi? Kompyuter yoqiq va internetga ulanganmi?");
-  return JSON.parse(qatorlar[qatorlar.length - 1].message).url;
+  // faqat https://*.trycloudflare.com; birinchi kirishdan keyin - faqat shu kompyuter kaliti bilan imzolangan e'lon
+  const kalit = SAQ.get("ek_" + id.toUpperCase());
+  for (const q of qatorlar.reverse()) {
+    let m; try { m = JSON.parse(q.message); } catch (e) { continue; }
+    if (!manzilTogri(m.url)) continue;
+    if (kalit && !(await imzoTogri(kalit, m))) continue;
+    return m.url;
+  }
+  throw new Error("Server manzili tasdiqlanmadi. Kompyuterda Kamera AI yangilanganmi?");
+}
+function manzilTogri(url) {
+  try { const x = new URL(url); return x.protocol === "https:" && x.hostname.endsWith(".trycloudflare.com"); } catch (e) { return false; }
+}
+async function imzoTogri(kalitHex, m) {
+  if (!m.imzo || !m.vaqt) return false;
+  const bayt = new Uint8Array(kalitHex.match(/../g).map(h => parseInt(h, 16)));
+  const k = await crypto.subtle.importKey("raw", bayt, {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
+  const im = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(m.url + "|" + m.vaqt)));
+  return [...im].map(b => b.toString(16).padStart(2, "0")).join("") === m.imzo;
 }
 function u(yol) { return S.url + yol + (yol.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(S.token); }
 async function api(yol, body) {
@@ -164,6 +182,7 @@ async function kir(ev) {
                           body: JSON.stringify({login: $("lL").value, parol: $("lP").value})});
     const d = await r.json(); if (!r.ok) throw new Error(d.xato);
     S.token = d.token; SAQ.set("id", S.id); SAQ.set("token", S.token);
+    if (d.elon_kalit) SAQ.set("ek_" + S.id.toUpperCase(), d.elon_kalit);
     ishga();
   } catch (e) { $("lX").textContent = e.message === "Failed to fetch" ? "Kompyuterga ulanib bo'lmadi — u yoqiqmi?" : e.message; }
 }
