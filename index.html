@@ -35,6 +35,10 @@
   .sb { display: flex; gap: 4px; align-items: flex-end; height: 110px; margin-top: 10px; }
   .sb div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; font-size: 10.5px; color: var(--mut); }
   .sb i { width: 100%; background: #93c5fd; border-radius: 5px 5px 2px 2px; margin-bottom: 3px; } .sb i.top { background: var(--ac); }
+  .tq { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 2px; font-size: 13px; }
+  .tq span:not(.tqs) { background: var(--card); border: 1px solid var(--ln); border-radius: 999px; padding: 4px 10px; }
+  .tq small { color: var(--mut); }
+  .tqs { color: var(--mut); }
   .pill { background: rgba(34, 197, 94, .18); color: #bbf7d0 !important; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; white-space: nowrap; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
   .kam img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #000; display: block; }
@@ -228,7 +232,7 @@ function chiz(faqatYangi) {
   const T = D.tahlil, H = D.holat || {};
   if (TAB === "asosiy") {
     $("app").innerHTML = `<div class="kpi">${(D.kpi || []).map(([b, q, i]) => `<div><i>${b}</i><b>${esc(q)}</b><small>${esc(i)}</small></div>`).join("")}</div>
-      ${diqqat(T)}${xulosa(T)}
+      ${taqqosHtml()}${diqqat(T)}${xulosa(T)}
       <div class="card"><b>🎥 Hozir eng faol</b><div class="grid" style="margin-top:8px">${(H.asosiy || []).map(kamKarta).join("")}</div></div>`;
   } else if (TAB === "kameralar") {
     if (faqatYangi) { document.querySelectorAll(".kam img").forEach(i => i.src = u(`/kadr.jpg?ip=${i.dataset.ip}&t=${Date.now()}`)); return; }
@@ -258,6 +262,13 @@ function chiz(faqatYangi) {
       <button onclick="api('/api/hisobot',{}).then(()=>alert('Telegramga yuborildi')).catch(e=>alert(e.message))" style="width:100%;margin-bottom:8px">📨 Bugungi hisobotni Telegramga</button>
       ${TG ? "" : `<button onclick="chiq()" style="width:100%">⏏ Chiqish</button>`}`;
   }
+}
+function taqqosHtml() {  // 📈 kecha shu vaqtgacha bilan solishtirish
+  const q = (D || {}).taqqos || [];
+  if (!q.length) return "";
+  const f = x => x.foiz == null ? `<b style="color:#16a34a">yangi</b>` : x.foiz > 0 ? `<b style="color:#16a34a">▲ ${x.foiz}%</b>` : x.foiz < 0 ? `<b style="color:#dc2626">▼ ${-x.foiz}%</b>` : `<b>＝</b>`;
+  const qiy = (x, v) => x.nom === "Stanoklar ishladi" ? (v >= 60 ? `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}` : `${v} daq`) : x.nom === "Odam faolligi" ? `${Math.round(v / 60)} odam-soat` : v;
+  return `<div class="tq"><span class="tqs">📈 Kecha shu vaqtgacha bilan:</span>${q.map(x => `<span>${x.belgi} ${esc(x.nom)} ${f(x)} <small>(${qiy(x, x.bugun)} / kecha ${qiy(x, x.oldin)})</small></span>`).join("")}</div>`;
 }
 function diqqat(T) {  // ⚠️ faqat e'tibor kerak bo'lgan narsalar (bot xulosasidagi bilan bir xil qoida)
   if (!T) return "";
