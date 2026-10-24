@@ -238,7 +238,11 @@ function chiz(faqatYangi) {
     $("app").innerHTML = `<div class="card"><b>${esc(D.obyektlar[D.sozlama.obyekt]?.belgi || "")} ${esc(D.obyektlar[D.sozlama.obyekt]?.nom || "")}</b>
         <div class="mut">Server: ${esc(S.id)} · ${esc(D.men.login.replace(/^tg:.*/, "Telegram"))} (${D.men.rol === "admin" ? "admin" : "kuzatuvchi"}) · v${esc(D.versiya.nom)}</div></div>
       ${admin ? `<div class="card"><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" style="width:auto" ${D.sozlama.qoriqlash ? "checked" : ""} onchange="qoriq(this.checked)">
-        <span>🚨 <b>Qo'riqlash</b> — ish vaqtidan tashqari odam ko'rinsa Telegramga rasm va video</span></label></div>` : ""}
+        <span>🚨 <b>Qo'riqlash</b> — ish vaqtidan tashqari odam ko'rinsa Telegramga rasm va video</span></label></div>
+        ${D.mashina ? `<div class="card"><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" style="width:auto" ${D.mashina.yoqilgan ? "checked" : ""} onchange="nazorat('mashina', this.checked)">
+          <span>🚗 <b>Mashinalar nazorati</b> — darvozadan kirgan/chiqqan mashinalar, rasm va video</span></label></div>` : ""}
+        ${D.xodim_chiqish ? `<div class="card"><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" style="width:auto" ${D.xodim_chiqish.yoqilgan ? "checked" : ""} onchange="nazorat('xodim_chiqish', this.checked)">
+          <span>🚶 <b>Xodimlar nazorati</b> — stanokdan chiqqan xodim qayerga bordi, uzoq qaytmasa xabar</span></label></div>` : ""}` : ""}
       ${D.sozlama.obyekt === "dokon" ? `<a href="${u("/api/tovarlar.xlsx?davr=oy")}"><button style="width:100%;margin-bottom:8px">🛒 Tovarlar statistikasi (Excel)</button></a>` : ""}
       <button onclick="api('/api/hisobot',{}).then(()=>alert('Telegramga yuborildi')).catch(e=>alert(e.message))" style="width:100%;margin-bottom:8px">📨 Bugungi hisobotni Telegramga</button>
       ${TG ? "" : `<button onclick="chiq()" style="width:100%">⏏ Chiqish</button>`}`;
@@ -324,6 +328,7 @@ function klip(x) {
     src="${u(`/api/klip?kun=${x.kun}&t=${encodeURIComponent(x.t)}&k=${x.k}&q=${encodeURIComponent(JSON.stringify(x.q))}&s=${encodeURIComponent(x.s)}`)}"></video>`;
   setTimeout(() => $("kHD").style.display = "", 500);
 }
+async function nazorat(nom, v) { try { await api("/api/sozlama", {[nom]: {yoqilgan: v}}); await yangila(); tab(TAB); } catch (e) { alert(e.message); } }
 async function qoriq(v) { try { await api("/api/sozlama", {qoriqlash: v}); } catch (e) { alert(e.message); } }
 if ("serviceWorker" in navigator && !TG) navigator.serviceWorker.register("sw.js").catch(() => {});
 // Kompyuterdagi Kamera AI uchun yangi versiya chiqsa - telefonda ham xabar; admin shu yerdan yangilaydi
