@@ -21,11 +21,21 @@
            display: flex; align-items: center; gap: 8px; }
   header b { font-size: 17px; flex: 1; }
   main { padding: 10px 12px 90px; }
-  .card { background: var(--card); border: 1px solid var(--ln); border-radius: 12px; padding: 10px; margin: 10px 0; }
-  .kpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .kpi div { background: var(--card); border: 1px solid var(--ln); border-radius: 12px; padding: 10px; }
-  .kpi b { font-size: 20px; display: block; }
-  .kpi small { color: var(--mut); }
+  .card { background: var(--card); border: 1px solid var(--ln); border-radius: 16px; padding: 14px; margin: 12px 0; box-shadow: 0 1px 3px rgba(16, 24, 40, .05); }
+  .card > b:first-child { font-size: 16px; }
+  .kpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .kpi div { background: var(--card); border: 1px solid var(--ln); border-radius: 16px; padding: 14px; box-shadow: 0 1px 3px rgba(16, 24, 40, .05); }
+  .kpi b { font-size: 26px; display: block; color: var(--ac); letter-spacing: -.3px; line-height: 1.2; }
+  .kpi i { font-style: normal; float: right; font-size: 18px; }
+  .kpi small { color: var(--mut); font-size: 13px; }
+  .st { display: grid; grid-template-columns: 40% 1fr 54px; gap: 8px; align-items: center; margin: 9px 0; font-size: 14px; }
+  .st span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .st div { background: var(--ln); border-radius: 6px; } .st em { display: block; height: 12px; border-radius: 6px; background: var(--ac); }
+  .st b { text-align: right; white-space: nowrap; }
+  .sb { display: flex; gap: 4px; align-items: flex-end; height: 110px; margin-top: 10px; }
+  .sb div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; font-size: 10.5px; color: var(--mut); }
+  .sb i { width: 100%; background: #93c5fd; border-radius: 5px 5px 2px 2px; margin-bottom: 3px; } .sb i.top { background: var(--ac); }
+  .pill { background: rgba(34, 197, 94, .18); color: #bbf7d0 !important; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; white-space: nowrap; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
   .kam img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #000; display: block; }
   .kam div { font-size: 13px; padding: 4px 2px; }
@@ -37,7 +47,7 @@
   nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--ln); display: flex;
         padding-bottom: env(safe-area-inset-bottom); z-index: 6; }
   nav button { flex: 1; border: 0; border-radius: 0; background: none; padding: 9px 2px 8px; font-size: 12px; color: var(--mut); }
-  nav button.on { color: var(--ac); font-weight: 700; }
+  nav button.on { color: var(--ac); font-weight: 700; box-shadow: inset 0 3px 0 var(--ac); }
   nav span { display: block; font-size: 21px; }
   #katta { position: fixed; inset: 0; background: #000; z-index: 20; display: none; flex-direction: column; }
   #katta img, #katta video { width: 100%; flex: 1; object-fit: contain; }
@@ -48,7 +58,7 @@
 </style>
 </head>
 <body>
-<header><b>📷 Kamera AI</b><span id="hol" class="mut" style="color:#cbd5e1"></span></header>
+<header><b>📷 Kamera AI</b><span id="hol" class="mut pill"></span></header>
 <main id="app"><div class="mut">Yuklanmoqda…</div></main>
 <nav id="nav" style="display:none">
   <button data-t="asosiy" onclick="tab('asosiy')"><span>📊</span>Asosiy</button>
@@ -217,7 +227,8 @@ function chiz(faqatYangi) {
   if (!D) return;
   const T = D.tahlil, H = D.holat || {};
   if (TAB === "asosiy") {
-    $("app").innerHTML = `<div class="kpi">${(D.kpi || []).map(([b, q, i]) => `<div><b>${b} ${esc(q)}</b><small>${esc(i)}</small></div>`).join("")}</div>
+    $("app").innerHTML = `<div class="kpi">${(D.kpi || []).map(([b, q, i]) => `<div><i>${b}</i><b>${esc(q)}</b><small>${esc(i)}</small></div>`).join("")}</div>
+      ${xulosa(T)}
       <div class="card"><b>🎥 Hozir eng faol</b><div class="grid" style="margin-top:8px">${(H.asosiy || []).map(kamKarta).join("")}</div></div>`;
   } else if (TAB === "kameralar") {
     if (faqatYangi) { document.querySelectorAll(".kam img").forEach(i => i.src = u(`/kadr.jpg?ip=${i.dataset.ip}&t=${Date.now()}`)); return; }
@@ -247,6 +258,22 @@ function chiz(faqatYangi) {
       <button onclick="api('/api/hisobot',{}).then(()=>alert('Telegramga yuborildi')).catch(e=>alert(e.message))" style="width:100%;margin-bottom:8px">📨 Bugungi hisobotni Telegramga</button>
       ${TG ? "" : `<button onclick="chiq()" style="width:100%">⏏ Chiqish</button>`}`;
   }
+}
+function xulosa(T) {  // 📊 stanoklar qancha ishladi + qaysi soatda gavjum (kompyuter sahifasi va bot rasmi bilan bir xil)
+  if (!T) return "";
+  const st = T.kameralar.filter(k => k.asosiy).flatMap(k => k.zonalar).filter(z => z.tur === "stanok")
+    .sort((a, b) => b.harakat_daq - a.harakat_daq).slice(0, 8);
+  const so = {};
+  T.kameralar.forEach(k => Object.entries(k.soatlar || {}).forEach(([h, v]) => so[+h] = (so[+h] || 0) + v));
+  const hm = m => m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : `${m} daq`;
+  const eng = Math.max(1, ...st.map(z => z.harakat_daq)), mx = Math.max(1, ...Object.values(so));
+  let s0 = +T.ish_vaqti[0].slice(0, 2), s1 = +T.ish_vaqti[1].slice(0, 2) - 1;
+  Object.keys(so).forEach(h => { s0 = Math.min(s0, +h); s1 = Math.max(s1, +h); });
+  const ust = [];
+  for (let h = s0; h <= s1; h++) ust.push(`<div><i class="${so[h] === mx ? "top" : ""}" style="height:${Math.round(85 * (so[h] || 0) / mx)}px"></i>${String(h).padStart(2, "0")}</div>`);
+  return (st.length ? `<div class="card"><b>⚙️ Stanoklar qancha ishladi</b>${st.map(z => `<div class="st"><span>${esc(z.nom)}</span>
+      <div><em style="width:${Math.max(4, Math.round(100 * z.harakat_daq / eng))}%"></em></div><b>${hm(z.harakat_daq)}</b></div>`).join("")}</div>` : "")
+    + (Object.keys(so).length ? `<div class="card"><b>🕐 Qaysi soatda gavjum</b><div class="sb">${ust.join("")}</div></div>` : "");
 }
 function kamKarta(ip) {
   const k = D.sozlama.kameralar.find(x => x.ip === ip) || {nom: ip}, v = (D.holat.kameralar || {})[ip] || {};
