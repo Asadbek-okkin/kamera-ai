@@ -228,11 +228,11 @@ function chiz(faqatYangi) {
   const T = D.tahlil, H = D.holat || {};
   if (TAB === "asosiy") {
     $("app").innerHTML = `<div class="kpi">${(D.kpi || []).map(([b, q, i]) => `<div><i>${b}</i><b>${esc(q)}</b><small>${esc(i)}</small></div>`).join("")}</div>
-      ${xulosa(T)}
+      ${diqqat(T)}${xulosa(T)}
       <div class="card"><b>🎥 Hozir eng faol</b><div class="grid" style="margin-top:8px">${(H.asosiy || []).map(kamKarta).join("")}</div></div>`;
   } else if (TAB === "kameralar") {
     if (faqatYangi) { document.querySelectorAll(".kam img").forEach(i => i.src = u(`/kadr.jpg?ip=${i.dataset.ip}&t=${Date.now()}`)); return; }
-    $("app").innerHTML = `<div class="mut">Ikki marta bosing — katta, jonli</div><div class="grid" style="margin-top:8px">${D.sozlama.kameralar.map(k => kamKarta(k.ip)).join("")}</div>`;
+    $("app").innerHTML = `<div class="mut">Bosing — katta, jonli</div><div class="grid" style="margin-top:8px">${D.sozlama.kameralar.map(k => kamKarta(k.ip)).join("")}</div>`;
   } else if (TAB === "izla") {
     if (faqatYangi) return;
     $("app").innerHTML = `<form onsubmit="izla(event)" style="display:flex;gap:6px"><input id="q" placeholder="Masalan: ${esc((D.misollar || [])[0] || "oq futbolka")}"><button class="pr" style="width:auto">🔎</button></form>
@@ -259,6 +259,20 @@ function chiz(faqatYangi) {
       ${TG ? "" : `<button onclick="chiq()" style="width:100%">⏏ Chiqish</button>`}`;
   }
 }
+function diqqat(T) {  // ⚠️ faqat e'tibor kerak bo'lgan narsalar (bot xulosasidagi bilan bir xil qoida)
+  if (!T) return "";
+  const mi = h => +h.slice(0, 2) * 60 + +h.slice(3, 5), d = m => m >= 60 ? `${Math.floor(m / 60)} soat ${m % 60} daq` : `${m} daq`, L = [];
+  T.kameralar.filter(k => k.asosiy).flatMap(k => k.zonalar).filter(z => (z.tur === "ish" || z.tur === "stanok") && z.bosh.length).forEach(z => {
+    const [a, b] = z.bosh.reduce((x, y) => mi(y[1]) - mi(y[0]) > mi(x[1]) - mi(x[0]) ? y : x);
+    if (mi(b) - mi(a) >= 30) L.push([mi(b) - mi(a), `${esc(z.nom)} <b>${d(mi(b) - mi(a))}</b> bo'sh qoldi (${a}–${b})`]);
+  });
+  T.kameralar.forEach(k => (k.stollar || []).forEach(s => { if (s.foiz < 50) L.push([200 - s.foiz, `${esc(s.nom)}: xodim joyida atigi <b>${s.foiz}%</b>`]); }));
+  const sh = (T.voqealar || {}).shubhali || [];
+  if (sh.length) L.push([999, `Eshik oldida notanish: <b>${sh.slice(0, 3).map(esc).join(", ")}</b>`]);
+  if (!L.length) return "";
+  return `<div class="card" style="background:#fffbeb;border-color:#fde68a;color:#78350f"><b>⚠️ E'tibor bering</b>
+    ${L.sort((x, y) => y[0] - x[0]).slice(0, 3).map(x => `<div style="margin-top:6px">• ${x[1]}</div>`).join("")}</div>`;
+}
 function xulosa(T) {  // 📊 stanoklar qancha ishladi + qaysi soatda gavjum (kompyuter sahifasi va bot rasmi bilan bir xil)
   if (!T) return "";
   const st = T.kameralar.filter(k => k.asosiy).flatMap(k => k.zonalar).filter(z => z.tur === "stanok")
@@ -277,7 +291,7 @@ function xulosa(T) {  // 📊 stanoklar qancha ishladi + qaysi soatda gavjum (ko
 }
 function kamKarta(ip) {
   const k = D.sozlama.kameralar.find(x => x.ip === ip) || {nom: ip}, v = (D.holat.kameralar || {})[ip] || {};
-  return `<div class="kam" data-ip="${esc(ip)}" data-nom="${esc(k.nom)}" ondblclick="katta(this.dataset.ip,this.dataset.nom)">
+  return `<div class="kam" data-ip="${esc(ip)}" data-nom="${esc(k.nom)}" onclick="katta(this.dataset.ip,this.dataset.nom)">
     <img data-ip="${esc(ip)}" src="${u(`/kadr.jpg?ip=${encodeURIComponent(ip)}&t=${Date.now()}`)}" loading="lazy" onerror="this.style.opacity=.3">
     <div><b>${esc(k.nom)}</b> ${v.ok === false ? "⚠️" : v.odam != null ? "· " + v.odam + " odam" : ""}</div></div>`;
 }
